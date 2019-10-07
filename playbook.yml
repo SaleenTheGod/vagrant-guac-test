@@ -1,0 +1,111 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Install yum utils & EPEL
+      yum:
+        name: 
+          - yum-utils
+          - epel-release
+          - wget
+        state: latest
+
+    - name: Install device-mapper-persistent-data
+      yum:
+        name: device-mapper-persistent-data
+        state: latest
+
+    - name: Install lvm2
+      yum:
+        name: lvm2
+        state: latest
+
+    - name: Install git
+      yum:
+        name: git
+        state: latest
+
+    - name: Add Docker repo
+      get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docer-ce.repo
+      become: yes
+
+    - name: Enable Docker Edge repo
+      ini_file:
+        dest: /etc/yum.repos.d/docer-ce.repo
+        section: 'docker-ce-edge'
+        option: enabled
+        value: 0
+      become: yes
+
+    - name: Enable Docker Test repo
+      ini_file:
+        dest: /etc/yum.repos.d/docer-ce.repo
+        section: 'docker-ce-test'
+        option: enabled
+        value: 0
+      become: yes
+
+    - name: Install Docker
+      package:
+        name: docker-ce
+        state: latest
+      become: yes
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+      become: yes
+
+    - name: Add user vagrant to docker group
+      user:
+        name: vagrant
+        groups: docker
+        append: yes
+      become: yes
+
+    - name: Ensure group "docker" exists
+      group:
+        name: docker
+        state: present
+
+    - name: Add the user 'vagrant' to a primary group of 'vagrant'
+      user:
+        name: vagrant
+        # comment: John Doe
+        # uid: 1040
+        group: docker
+    
+    - name: Install Docker Compose (if configured).
+      get_url:
+        url: https://github.com/docker/compose/releases/download/1.24.1/docker-compose-Linux-x86_64
+        dest: "/usr/local/bin/docker-compose"
+        mode: 0755
+      become: true
+      
+    - name: Get Guacamole git repo
+      git:
+        repo: "https://github.com/SaleenTheGod/docker-compose-guacamole-stack.git"
+        dest: "/home/vagrant/docker-guac"
+        version: "master"
+
+    - name: Run Shell Script #REMOVE THIS AND ACUTALLY DO THE WORK ONCE IT WORKS....
+      shell: sh /home/vagrant/docker-guac/prepare.sh
+    
+    - name: Recursively change ownership of a directory
+      file:
+        path: /home/vagrant
+        state: directory
+        recurse: yes
+        owner: vagrant
+        group: vagrant
+
+        
+    - name: Run Docker Compose on the docker project (THE BAD WAY)
+      shell: "docker-compose -f /home/vagrant/docker-guac/docker-compose.yml  up -d"
+    # - name: run the service defined in my_project's docker-compose.yml
+    #   docker_compose:
+    #     project_src: /tmp/docker-guac/docker-compose.yml
